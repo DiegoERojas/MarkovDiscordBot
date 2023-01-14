@@ -9,8 +9,6 @@ client = discord.Client(intents=intents)
 
 bot = commands.Bot(command_prefix='.', intents=intents)
 
-# Idea (ish): Grab user input on what command they want to execute, then set each command as a key in a dictionary. If
-# the lowercase input is equal to one of the keys, execute that key value pair. Otherwise, say that command doesn't exist
 
 def run_Discord_Bot():
     chainMessages = 10
@@ -42,7 +40,6 @@ def run_Discord_Bot():
         await ctx.send("`Forcing a markov chain...`")
 
     bot.remove_command("help")
-
     @bot.command()
     async def help(ctx):
         await ctx.send("```Here is the list of things I can do: \n1) .markov\n2) .help\n3) .description\n4) .credits\n5) .source```")
@@ -52,6 +49,10 @@ def run_Discord_Bot():
         await ctx.send(f"```Hello, I am a bot that relies on text from users and composes a markov chain.\n"
                        f"This process will occur every {chainMessages} messages or can be forced using the\n"
                        f"\'.markov\' command```")
+
+    @bot.command()
+    async def elp(ctx):
+        await ctx.send("```Here is the list of things I can do: \n1) .markov\n2) .elp\n3) .credits```")
 
     @bot.command()
     async def credits(ctx):

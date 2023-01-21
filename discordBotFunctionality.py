@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 import creds
-
+from MarkovTextComposer import MarkovComposer
 
 intents = discord.Intents.all()
 intents.message_content = True
@@ -21,7 +21,7 @@ class MainBotClass:
         self.forceChain = value
 
 def run_Discord_Bot():
-    chainMessages, cooldown = 3, 3
+    chainMessages, cooldown = user.forceChain, user.forceChain
     messageList = []
     listOfWords = []
 
@@ -29,12 +29,13 @@ def run_Discord_Bot():
     async def on_ready():
         print(f"{bot.user} is ready.")
 
+    def resettingMarkov():
+        messageList.clear()
+        listOfWords.clear()
+        user.setForceChain(user.forceChainFrequency)
+
     @bot.event
     async def on_message(message):
-        def resettingMarkov():
-            messageList.clear()
-            listOfWords.clear()
-            user.setForceChain(user.forceChainFrequency)
 
         # Bot will ignore any messages sent by itself
         if message.author == bot.user:
@@ -50,26 +51,22 @@ def run_Discord_Bot():
                     listOfWords.append(word)
                 print(f"listOfWords: {listOfWords}")
                 user.setForceChain(user.getForceChain() - 1)
-        elif user.getForceChain() == -1 or message.content.startswith == ".markov":
-            @bot.command()
-            async def markov(ctx):
-                if len(messageList) < user.forceChainFrequency - 1:
-                    await ctx.send("`Please give me time to reference additional messages to the markov chain`")
-                else:
-                    print("Forcing markov chain inside markov")
-                    await ctx.send("`Forcing a markov chain...`")
-                    resettingMarkov()
-            print("Forcing a markov chain outside inner markov...")
+        elif user.getForceChain() == -1:
+            print("Automatically Forcing a markov chain...")
             resettingMarkov()
         await bot.process_commands(message)
-    """
+
     @bot.command()
     async def markov(ctx):
         if len(messageList) < user.forceChainFrequency - 1:
             await ctx.send("`Please give me time to reference additional messages to the markov chain`")
         else:
-            await ctx.send("`Forcing a markov chain...`")
-    """
+            print("Forcing markov chain inside markov")
+            userMarkov = MarkovComposer(listOfWords)
+            userMarkov.settingKeyValues()
+            userMarkov.markovOutput()
+            await ctx.send(userMarkov.unpackingResult())
+            resettingMarkov()
 
     bot.remove_command("help")
 

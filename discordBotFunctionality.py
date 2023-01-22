@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 import creds
-from MarkovTextComposer import MarkovComposer
+import MarkovTextComposer as mtc
 
 intents = discord.Intents.all()
 intents.message_content = True
@@ -13,6 +13,13 @@ class MainBotClass:
     def __init__(self, forceChain):
         self.forceChain = forceChain
         self.forceChainFrequency = forceChain
+        self.fourthMessage = ""
+
+    def setFourthMessage(self, message):
+        self.fourthMessage = message
+
+    def getFourthMessage(self):
+        return self.fourthMessage
 
     def getForceChain(self):
         return self.forceChain
@@ -43,17 +50,18 @@ def run_Discord_Bot():
         # If a user's message is a command for Markov or a link, then ignore it
         if user.getForceChain() != -1:
             if not message.content.startswith(".") and not message.content.startswith("http"):
-                print(f"Message contents: {message.content}")
                 messageList.insert(0, message.content.split())
-                print(f"messageList: {messageList}")
                 # Obtaining each individual work within the user message and storing in a list
                 for word in messageList[0]:
                     listOfWords.append(word)
-                print(f"listOfWords: {listOfWords}")
                 user.setForceChain(user.getForceChain() - 1)
         elif user.getForceChain() == -1:
             print("Automatically Forcing a markov chain...")
+            ctx = await bot.get_context(message)
+            await markov(ctx)
+            user.setFourthMessage(message.content)
             resettingMarkov()
+            listOfWords.append(user.fourthMessage)
         await bot.process_commands(message)
 
     @bot.command()
@@ -61,23 +69,27 @@ def run_Discord_Bot():
         if len(messageList) < user.forceChainFrequency - 1:
             await ctx.send("`Please give me time to reference additional messages to the markov chain`")
         else:
-            print("Forcing markov chain inside markov")
-            userMarkov = MarkovComposer(listOfWords)
+            userMarkov = mtc.MarkovComposer(listOfWords, user.forceChainFrequency)
             userMarkov.settingKeyValues()
             userMarkov.markovOutput()
-            await ctx.send(userMarkov.unpackingResult())
+            await ctx.send(f"`{userMarkov.unpackingResult()}`")
             resettingMarkov()
 
     bot.remove_command("help")
 
     @bot.command()
     async def help(ctx):
-        await ctx.send("```Here is the list of things I can do: \n1) .markov\n2) .help\n3) .description\n4) .credits\n5) .source```")
+        await ctx.send("```Here is the list of things I can do: \n"
+                       "1) .markov        (Forces a markov chain based on current data)\n"
+                       "2) .help          (Displays a menu of all available commands)\n"
+                       "3) .description   (What this bot does)\n"
+                       "4) .credits       (Creator of this bot)\n"
+                       "5) .source        (Link to the GitHub repo)```")
 
     @bot.command()
     async def description(ctx):
-        await ctx.send(f"```Hello, I am a bot that relies on text from users and composes a markov chain.\n"
-                       f"This process will occur every {chainMessages} messages or can be forced using the\n"
+        await ctx.send(f"```Hello, I am a bot that relies on text from users and composes a markov chain."
+                       f"This process will occur every {chainMessages} messages or can be forced using the"
                        f"\'.markov\' command```")
 
     @bot.command()

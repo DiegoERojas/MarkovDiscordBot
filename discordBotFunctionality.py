@@ -15,11 +15,13 @@ class MainBotClass:
         self.forceChainFrequency = forceChain
         self.fourthMessage = ""
 
+    """
     def setFourthMessage(self, message):
         self.fourthMessage = message
 
     def getFourthMessage(self):
         return self.fourthMessage
+    """
 
     def getForceChain(self):
         return self.forceChain
@@ -39,7 +41,7 @@ def run_Discord_Bot():
     def resettingMarkov():
         messageList.clear()
         listOfWords.clear()
-        user.setForceChain(user.forceChainFrequency)
+        user.setForceChain(user.forceChainFrequency - 1)
 
     @bot.event
     async def on_message(message):
@@ -47,19 +49,22 @@ def run_Discord_Bot():
         # Bot will ignore any messages sent by itself
         if message.author == bot.user:
             return
-        # If a user's message is a command for Markov or a link, then ignore it
-        if user.getForceChain() != -1:
+
+        user.setForceChain(user.getForceChain() - 1)
+        if user.getForceChain() != 0:
+            # If a user's message is a command for Markov or a link, then ignore it
             if not message.content.startswith(".") and not message.content.startswith("http"):
                 messageList.insert(0, message.content.split())
                 # Obtaining each individual work within the user message and storing in a list
                 for word in messageList[0]:
                     listOfWords.append(word)
-                user.setForceChain(user.getForceChain() - 1)
-        elif user.getForceChain() == -1:
+                # user.setForceChain(user.getForceChain() - 1)
+        elif user.getForceChain() == 0:
             print("Automatically Forcing a markov chain...")
+            listOfWords.append(message.content)
             ctx = await bot.get_context(message)
             await markov(ctx)
-            user.setFourthMessage(message.content)
+            # user.setFourthMessage(message.content)
             resettingMarkov()
             listOfWords.append(user.fourthMessage)
         await bot.process_commands(message)
@@ -69,9 +74,12 @@ def run_Discord_Bot():
         if len(messageList) < user.forceChainFrequency - 1:
             await ctx.send("`Please give me time to reference additional messages to the markov chain`")
         else:
+            print(f"listOfWords: {listOfWords}")
             userMarkov = mtc.MarkovComposer(listOfWords, user.forceChainFrequency)
+            userMarkov.totalNumberOfWords()
             userMarkov.settingKeyValues()
             userMarkov.markovOutput()
+            # print(f"unpackingResult type: {userMarkov.unpackingResult()}")
             await ctx.send(f"`{userMarkov.unpackingResult()}`")
             resettingMarkov()
 

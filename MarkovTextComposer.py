@@ -10,6 +10,7 @@ class MarkovComposer:
         """
         self.adjacentWords = {}
         self.numberOfValues = 0
+        self.numberOfWords = 0
         self.output = ""
         self.lengthOfChain = lengthOfChain
         self.CHAINCONSTANT = lengthOfChain
@@ -17,11 +18,20 @@ class MarkovComposer:
     def setLengthOfChain(self, length):
         self.lengthOfChain = length
 
+    def setTotalNumberOfWords(self, count):
+        self.numberOfWords = count
+
+    def getTotalNumberOfWords(self):
+        return self.numberOfWords
+
     def setOutput(self, value):
         self.output = value
 
     def getOutput(self):
         return self.output
+
+    def totalNumberOfWords(self):
+        self.setTotalNumberOfWords(len(self.listOfWords))
 
     def settingKeyValues(self):
         # Getting every overlapping pair of words in listOfWords
@@ -42,19 +52,22 @@ class MarkovComposer:
             keyList.append(key)
         for value in self.adjacentWords.values():
             valueList.append(value)
-        resultingString = random.choices(keyList, weights=valueList, k=self.numberOfValues)
+        resultingString = random.choices(keyList, weights=valueList, k=self.getTotalNumberOfWords() // self.CHAINCONSTANT)
         print(f"keyList: {keyList}\nvalueList: {valueList}")
         self.setOutput(resultingString)
         return self.getOutput()
 
+    # TODO: Fix the extra space at the start of the message output issue
     def unpackingResult(self):
         finalPhrase = ""
         """
         Loop amount is determined on how many pairs there is divided by the 
         length of the chain set in discordBotFunctionality
         """
-        for number in range(self.numberOfValues // self.CHAINCONSTANT):
-            pairOfWords = " ".join(self.getOutput()[number])
-            finalPhrase = finalPhrase + " " + pairOfWords
+        for index in range(len(self.getOutput())):
+            for message in self.getOutput()[index]:
+                pairOfWords = "".join(message)
+                finalPhrase = finalPhrase + " " + pairOfWords
         return finalPhrase
+
 

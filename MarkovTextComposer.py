@@ -6,7 +6,6 @@ class MarkovComposer:
         """
         A dictionary to hold all adjacent words with that word. Every pair of words will have their own key 
         and value (which will be their probability). Probability will scale linearly and by increments of one.
-        
         """
         self.adjacentWords = {}
         self.numberOfValues = 0
@@ -48,16 +47,20 @@ class MarkovComposer:
         # Storing each the dict. keys and values in their own list
         keyList = []
         valueList = []
+        # If there's very little words, then just have the bot output at least 1 pair of words.
+        if self.getTotalNumberOfWords() <= self.CHAINCONSTANT:
+            lengthOfOutput = self.CHAINCONSTANT // self.getTotalNumberOfWords()
+        else:
+            lengthOfOutput = self.getTotalNumberOfWords() // self.CHAINCONSTANT
+
         for key in self.adjacentWords.keys():
             keyList.append(key)
         for value in self.adjacentWords.values():
             valueList.append(value)
-        resultingString = random.choices(keyList, weights=valueList, k=self.getTotalNumberOfWords() // self.CHAINCONSTANT)
-        print(f"keyList: {keyList}\nvalueList: {valueList}")
+        resultingString = random.choices(keyList, weights=valueList, k=lengthOfOutput)
         self.setOutput(resultingString)
         return self.getOutput()
 
-    # TODO: Fix the extra space at the start of the message output issue
     def unpackingResult(self):
         finalPhrase = ""
         """
@@ -65,9 +68,12 @@ class MarkovComposer:
         length of the chain set in discordBotFunctionality
         """
         for index in range(len(self.getOutput())):
+            # Getting the pair of words tuple located at index
             for message in self.getOutput()[index]:
                 pairOfWords = "".join(message)
-                finalPhrase = finalPhrase + " " + pairOfWords
+                # Avoid outputting an additional space at the start of the markov chain
+                if finalPhrase == "":
+                    finalPhrase = pairOfWords
+                else:
+                    finalPhrase = finalPhrase + " " + pairOfWords
         return finalPhrase
-
-

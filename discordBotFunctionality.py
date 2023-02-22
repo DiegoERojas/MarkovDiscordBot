@@ -26,7 +26,8 @@ class MainBotClass:
         self.canForceMarkov = False
         self.numberOfMessages = 0
         self.minMessagesToForceMarkov = forceChain // 2
-        self.creatorID = "<@251087613325344768>"
+        self.markovChannels = []
+        self.devID = 0
 
 
 def run_Discord_Bot():
@@ -36,6 +37,11 @@ def run_Discord_Bot():
     @bot.event
     async def on_ready():
         print(f"{bot.user} is ready.")
+        # Setting the status for the bot
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,
+                                                            name="you feed me words"))
+        devID = await bot.fetch_user(251087613325344768)
+        user.devID = devID
 
     def resettingMarkov():
         messageList.clear()
@@ -44,6 +50,7 @@ def run_Discord_Bot():
 
     @bot.event
     async def on_message(message):
+
         # Bot will ignore any messages sent by itself
         if message.author == bot.user:
             return
@@ -63,6 +70,7 @@ def run_Discord_Bot():
                     listOfWords.append(word)
         # Automatically creating a markov chain
         elif user.autoRunMarkov:
+            # Takes the current word and appends it to the list before calling markov
             if not message.content.startswith("."):
                 listOfWords.append(message.content)
             # Force calling the markov command
@@ -96,59 +104,82 @@ def run_Discord_Bot():
     async def help(ctx):
         helpEmbed = EmbedMessage()
         helpEmbed.embed.add_field(name=".markov",
-                                  value="Forces a markov chain based on current data",
+                                  value="Forces a markov chain based on current data.",
                                   inline=False)
         helpEmbed.embed.add_field(name=".help",
-                                  value="Displays a menu of all available commands",
+                                  value="Displays a menu of all available commands.",
                                   inline=False)
-        helpEmbed.embed.add_field(name=".creator",
-                                  value="Who the creator of this bot is (with link to the repo)",
+        helpEmbed.embed.add_field(name=".dev",
+                                  value="Who the developer of this bot is (with link to the repo).",
                                   inline=False)
         helpEmbed.embed.add_field(name=".description",
                                   value="Describes what this bot does.",
                                   inline=False)
         helpEmbed.embed.add_field(name=".bug",
-                                  value="DMs the creator of the bot to let them know there is an issue occurring.",
+                                  value="DMs the developer of the bot to let them know there is an issue occurring.",
+                                  inline=False)
+        helpEmbed.embed.add_field(name=".mchannels",
+                                  value="Displays the channels in which markov is active in.",
                                   inline=False)
         await ctx.send(embed=helpEmbed.embed)
 
     @bot.command()
     async def description(ctx):
         descriptionEmbed = EmbedMessage()
-        descriptionEmbed.embed.add_field(name="Hello, I am a text bot that relies on text from users and composes a markov chain."
-                                              f"This process will occur every {user.forceChainFrequencyCONST} messages or can be forced using the"
+        descriptionEmbed.embed.add_field(name="Hello, I am a text bot that relies on text from users and composes a markov chain. "
+                                              f"This process will occur every {user.forceChainFrequencyCONST} messages or can be forced using the "
                                               f"\'.markov\' command when at least {user.minMessagesToForceMarkov} messages have been sent.",
                                               value="")
         await ctx.send(embed=descriptionEmbed.embed)
 
     @bot.command()
-    async def creator(ctx):
+    async def dev(ctx):
+        devID = await bot.fetch_user(251087613325344768)
+
         creditsEmbed = discord.Embed(title="",
                                      url="",
-                                     description="",
+                                     description=devID.mention,
                                      color=0x4db8ff)
-        creditsEmbed.set_author(name="@D E G O",
+        creditsEmbed.set_author(name="GitHub",
                                 url="https://github.com/DiegoERojas/MarkovDiscordBot",
                                 icon_url="https://cdn.discordapp.com/avatars/251087613325344768/2e63086e1d0571575001cd60fd4dd02c.webp?size=100")
+        creditsEmbed.set_thumbnail(url=f"{devID.avatar}")
         creditsEmbed.set_footer(text=f"type \'.help\' for a menu of commands.")
         await ctx.send(embed=creditsEmbed)
 
     @bot.command()
     async def bug(ctx):
-        creatorUser = await bot.fetch_user(251087613325344768)
+        devID = await bot.fetch_user(251087613325344768)
         # An embed to notify the channel that their response was acknowledged
         bugEmbed = EmbedMessage()
-        bugEmbed.embed.add_field(name=f"A message has been sent to {creatorUser} regarding the issue you are currently facing.",
+        bugEmbed.embed.add_field(name=f"A message has been sent to {devID} regarding the issue you are currently facing.",
                                  value="")
 
-        # An embed to send to the creator with the specific server and channel
+        # An embed to send to the dev with the specific server and channel
         dmEmbed = discord.Embed(title="",
                                 url="",
                                 description=f"Your assistance is needed in {ctx.message.guild.name} "
                                             f"in the {ctx.message.channel.mention} channel.",
                                 color=0x4db8ff)
-        await creatorUser.send(embed=dmEmbed)
+        await devID.send(embed=dmEmbed)
         await ctx.send(embed=bugEmbed.embed)
+
+    @bot.command()
+    async def mchannels(ctx):
+        # Grabbing each text channel from the server this message was invoked in
+        for textChannel in ctx.message.guild.text_channels:
+            #
+            for members in textChannel.members:
+                # If the bot is one of the members of the text channel, add to the list of channels that markov is active in
+                if bot.user.id == members.id:
+                    user.markovChannels.append(textChannel.name)
+        formattedEmbedOutput = ', '.join(user.markovChannels)
+
+        channelsEmbed = EmbedMessage()
+        channelsEmbed.embed.add_field(
+            name=f"Markov is active in the following channels: ",
+            value=f"{formattedEmbedOutput}")
+        await ctx.send(embed=channelsEmbed.embed)
 
     bot.run(creds.botTOKEN)
 
@@ -158,5 +189,5 @@ if __name__ == "__main__":
     The argument is the number of messages the bot will reference before
     automatically running the markov text chain.
     """
-    user = MainBotClass(5)
+    user = MainBotClass(10)
     run_Discord_Bot()

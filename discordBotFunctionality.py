@@ -26,6 +26,7 @@ class MainBotClass:
         self.canForceMarkov = False
         self.numberOfMessages = 0
         self.minMessagesToForceMarkov = forceChain // 2
+        self.allChannels = []
         self.markovChannels = []
         self.devID = 0
 
@@ -118,8 +119,13 @@ def run_Discord_Bot():
         helpEmbed.embed.add_field(name=".bug",
                                   value="DMs the developer of the bot to let them know there is an issue occurring.",
                                   inline=False)
-        helpEmbed.embed.add_field(name=".mchannels",
+        helpEmbed.embed.add_field(name=".botchannels",
                                   value="Displays the channels in which markov is active in.",
+                                  inline=False)
+        helpEmbed.embed.add_field(name=".togglechannel",
+                                  value="Allows the user (if they have sufficient permissions) to allow or deny "
+                                        "the bot access to certain channels within the server. Format: .togglechannel "
+                                        "<textchannel>",
                                   inline=False)
         await ctx.send(embed=helpEmbed.embed)
 
@@ -161,14 +167,15 @@ def run_Discord_Bot():
                                 description=f"Your assistance is needed in {ctx.message.guild.name} "
                                             f"in the {ctx.message.channel.mention} channel.",
                                 color=0x4db8ff)
+
         await devID.send(embed=dmEmbed)
         await ctx.send(embed=bugEmbed.embed)
 
     @bot.command()
-    async def mchannels(ctx):
+    async def botchannels(ctx):
         # Grabbing each text channel from the server this message was invoked in
         for textChannel in ctx.message.guild.text_channels:
-            #
+            user.allChannels.append(textChannel.name)
             for members in textChannel.members:
                 # If the bot is one of the members of the text channel, add to the list of channels that markov is active in
                 if bot.user.id == members.id:
@@ -180,6 +187,43 @@ def run_Discord_Bot():
             name=f"Markov is active in the following channels: ",
             value=f"{formattedEmbedOutput}")
         await ctx.send(embed=channelsEmbed.embed)
+
+    @bot.command()
+    async def TBC(ctx, message):
+        """
+        toggleBotChannel = EmbedMessage()
+        toggleBotChannel.embed.add_field(name="",
+                                         value="")
+        """
+        userMessage = message
+        for textChannel in ctx.message.guild.text_channels:
+            user.allChannels.append(textChannel.name)
+        # Gets a list of roles (in hierarchical order) of the server owner and returns
+        # The last element (their highest role)
+        highestRole = ctx.message.guild.owner.roles[-1]
+        # If the user who invoked this command has the highest role let them continue
+        userMessage = userMessage.replace(".TBC", "").lower()
+
+        if highestRole in ctx.message.author.roles:
+            # If the message contains a valid channel name
+            if userMessage in user.allChannels:
+                # If the bot can already talk in the channel, then remove it from outputting messages in that channel
+                if userMessage in user.markovChannels:
+                    user.markovChannels.remove(userMessage)
+                    print(f"Markov can not no longer message the {userMessage} channel.")
+                    # await ctx.send(embed=toggleBotChannel.embed)
+                # Otherwise, add that channel to the list of channels the bot can talk in
+                else:
+                    user.markovChannels.append(userMessage)
+                    print(f"Markov is now active in the {userMessage} channel.")
+                    # await ctx.send(embed=toggleBotChannel.embed)
+
+            else:
+                print(f"There is no non-private text channel with the name \'{userMessage}\'. Format: \'.TBC <TextChannel>\'")
+                # await ctx.send(embed=toggleBotChannel.embed)
+        else:
+            print("You do not have permission do perform this command, only people with the <role> role may use this command.")
+            # await ctx.send(embed=toggleBotChannel.embed)
 
     bot.run(creds.botTOKEN)
 

@@ -30,6 +30,7 @@ class MainBotClass:
         self.markovChannels = []  # List of all text channels Markov is active in, variable length
         self.allNonPrivateChannels = []  # List of all Non-private text channels, immutable
         self.devID = 0
+        self.getChannels = False
 
 
 def run_Discord_Bot():
@@ -52,6 +53,18 @@ def run_Discord_Bot():
 
     @bot.event
     async def on_message(message):
+        ctx = await bot.get_context(message)
+        # If markovChannels, allChannels, and allNonPrivateChannels have NOT been defined
+        if not user.getChannels:
+            # Grabbing each text channel from the server this message was invoked in
+            for textChannel in ctx.message.guild.text_channels:
+                user.allChannels.append(textChannel.name)
+                for members in textChannel.members:
+                    # If the bot is one of the members of the text channel, add to the list of channels that markov is active in
+                    if bot.user.id == members.id:
+                        user.markovChannels.append(textChannel.name)
+                        user.allNonPrivateChannels.append(textChannel.name)
+            user.getChannels = True
 
         # Bot will ignore any messages sent by itself
         if message.author == bot.user:
@@ -76,32 +89,32 @@ def run_Discord_Bot():
             if not message.content.startswith("."):
                 listOfWords.append(message.content)
             # Force calling the markov command
-            ctx = await bot.get_context(message)
             await markov(ctx)
         await bot.process_commands(message)
 
     @bot.command()
     async def markov(ctx):
-        if user.canForceMarkov:
-            userMarkov = mtc.MarkovComposer(listOfWords, user.forceChainFrequencyCONST)
-            userMarkov.totalNumberOfWords()
-            userMarkov.settingKeyValues()
-            userMarkov.markovOutput()
-            markovMessage = EmbedMessage()
-            markovMessage.embed.add_field(name="Result: ",
-                                          value=f"{userMarkov.unpackingResult()}")
-            await ctx.send(embed=markovMessage.embed)
-            user.autoRunMarkov = False
-            user.canForceMarkov = False
-            resettingMarkov()
-        else:
-            rejectedMarkov = EmbedMessage()
-            rejectedMarkov.embed.add_field(name="Please give me time to reference additional messages to the markov chain",
-                                           value="")
-            await ctx.send(embed=rejectedMarkov.embed)
+        # If the bot can talk in the current channel
+        if str(ctx.message.channel) in user.markovChannels:
+            if user.canForceMarkov:
+                userMarkov = mtc.MarkovComposer(listOfWords, user.forceChainFrequencyCONST)
+                userMarkov.totalNumberOfWords()
+                userMarkov.settingKeyValues()
+                userMarkov.markovOutput()
+                markovMessage = EmbedMessage()
+                markovMessage.embed.add_field(name="Result: ",
+                                              value=f"{userMarkov.unpackingResult()}")
+                await ctx.send(embed=markovMessage.embed)
+                user.autoRunMarkov = False
+                user.canForceMarkov = False
+                resettingMarkov()
+            else:
+                rejectedMarkov = EmbedMessage()
+                rejectedMarkov.embed.add_field(name="Please give me time to reference additional messages to the markov chain",
+                                               value="")
+                await ctx.send(embed=rejectedMarkov.embed)
 
     bot.remove_command("help")
-
     @bot.command()
     async def help(ctx):
         helpEmbed = EmbedMessage()
@@ -174,14 +187,6 @@ def run_Discord_Bot():
 
     @bot.command()
     async def botchannels(ctx):
-        # Grabbing each text channel from the server this message was invoked in
-        for textChannel in ctx.message.guild.text_channels:
-            user.allChannels.append(textChannel.name)
-            for members in textChannel.members:
-                # If the bot is one of the members of the text channel, add to the list of channels that markov is active in
-                if bot.user.id == members.id:
-                    user.markovChannels.append(textChannel.name)
-                    user.allNonPrivateChannels.append(textChannel.name)
         formattedEmbedOutput = ', '.join(user.markovChannels)
 
         channelsEmbed = EmbedMessage()
@@ -190,8 +195,9 @@ def run_Discord_Bot():
             value=f"{formattedEmbedOutput}")
         await ctx.send(embed=channelsEmbed.embed)
 
+
     @bot.command()
-    async def togglechannels(ctx, message):
+    async def togglechannel(ctx, message):
 
         toggleBotChannel = EmbedMessage()
         toggleBotChannel.embed.add_field(name="",
@@ -203,34 +209,36 @@ def run_Discord_Bot():
         # Gets a list of roles (in hierarchical order) of the server owner and returns
         # The last element (their highest role)
         highestRole = ctx.message.guild.owner.roles[-1]
-        # If the user who invoked this command has the highest role let them continue
         userMessage = userMessage.replace(".TBC", "").lower()
 
+        # If the user who invoked this command has the highest role let them continue
         if highestRole in ctx.message.author.roles:
             # If the message contains a valid channel name
             if userMessage in user.allChannels:
                 # If the bot can already talk in the channel, then remove it from outputting messages in that channel
                 if userMessage in user.markovChannels:
-                    # Throw exception if markov list is already empty
-                    try:
-                        user.markovChannels.remove(userMessage)
-                        toggleBotChannel.embed.set_field_at(0,
-                                                            name="",
-                                                            value=f"{bot.user} can no longer output messages in the \'{userMessage}\' channel")
-                        await ctx.send(embed=toggleBotChannel.embed)
-                    except IndexError:
-                        toggleBotChannel.embed.set_field_at(0,
-                                                            name="",
-                                                            value="Markov already cannot talk in any channel")
-                        await ctx.send(embed=toggleBotChannel.embed)
-                # Otherwise, add that channel to the list of channels the bot can talk in
-                else:
-                    user.markovChannels.append(userMessage)
+                    user.markovChannels.remove(userMessage)
                     toggleBotChannel.embed.set_field_at(0,
                                                         name="",
-                                                        value=f"{bot.user} can now output messages in the \'{userMessage}\' channel")
-                    print(f"{bot.user} is now active in the {userMessage} channel.")
+                                                        value=f"{bot.user} can no longer output messages in the \'{userMessage}\' channel")
                     await ctx.send(embed=toggleBotChannel.embed)
+
+                # Otherwise, add that channel to the list of channels the bot can talk in
+                else:
+
+                    if userMessage in user.allNonPrivateChannels:
+                        user.markovChannels.append(userMessage)
+                        toggleBotChannel.embed.set_field_at(0,
+                                                            name="",
+                                                            value=f"{bot.user} can now output messages in the \'{userMessage}\' channel")
+                        await ctx.send(embed=toggleBotChannel.embed)
+                    # User requested that the bot be allowed to output in a private channel which is not possible
+                    # Unless the bot has been given the required roles to access the private channel
+                    else:
+                        toggleBotChannel.embed.set_field_at(0,
+                                                            name="",
+                                                            value=f"{bot.user} cannot access the \'{userMessage}\' channel due to restrictions. Please select a non-private text channel.")
+                        await ctx.send(embed=toggleBotChannel.embed)
 
             else:
                 toggleBotChannel.embed.set_field_at(0,
@@ -251,5 +259,5 @@ if __name__ == "__main__":
     The argument is the number of messages the bot will reference before
     automatically running the markov text chain.
     """
-    user = MainBotClass(10)
+    user = MainBotClass(3)
     run_Discord_Bot()
